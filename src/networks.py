@@ -1,5 +1,7 @@
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
+
 from .ops import conv2d, conv2d_transpose, pixelwise_accuracy
 
 
@@ -31,7 +33,7 @@ class Discriminator(object):
 
                 if kernel[2] > 0:
                     keep_prob = 1.0 - kernel[2] if self.training else 1.0
-                    output = tf.nn.dropout(output, keep_prob=keep_prob, name='dropout_' + name, seed=seed)
+                    output = tf.nn.dropout(output, rate=1-keep_prob, name='dropout_' + name, seed=seed)
 
             output = conv2d(
                 inputs=output,
@@ -80,10 +82,10 @@ class Generator(object):
 
                 # save contracting path layers to be used for skip connections
                 layers.append(output)
-                
+
                 if kernel[2] > 0:
                     keep_prob = 1.0 - kernel[2] if self.training else 1.0
-                    output = tf.nn.dropout(output, keep_prob=keep_prob, name='dropout_' + name, seed=seed)
+                    output = tf.nn.dropout(output, rate=1-keep_prob, name='dropout_' + name, seed=seed)
 
             # decoder branch
             for index, kernel in enumerate(self.decoder_kernels):
@@ -101,7 +103,7 @@ class Generator(object):
 
                 if kernel[2] > 0:
                     keep_prob = 1.0 - kernel[2] if self.training else 1.0
-                    output = tf.nn.dropout(output, keep_prob=keep_prob, name='dropout_' + name, seed=seed)
+                    output = tf.nn.dropout(output, rate=1-keep_prob, name='dropout_' + name, seed=seed)
 
                 # concat the layer from the contracting path with the output of the current layer
                 # concat only the channels (axis=3)

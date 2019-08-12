@@ -1,13 +1,18 @@
 import os
 import glob
 import numpy as np
-import tensorflow as tf
-from scipy.misc import imread
+import tensorflow.compat.v1 as tf
+from sys import exit
+tf.disable_v2_behavior()
+
+#from scipy.misc import imread
+from imageio import imread
 from abc import abstractmethod
 from .utils import unpickle
 
 CIFAR10_DATASET = 'cifar10'
 PLACES365_DATASET = 'places365'
+NIR_DATASET = 'nir'
 
 
 class BaseDataset():
@@ -64,7 +69,7 @@ class BaseDataset():
                         items.append(item)
 
                 start = end
-                yield items
+                yield np.array(items)
 
             if recusrive:
                 start = 0
@@ -138,6 +143,30 @@ class Places365Dataset(BaseDataset):
         return data
 
 
+class NirDataset(BaseDataset):
+    def __init__(self, path, training=True, augment=True):
+        super(NirDataset, self).__init__(NIR_DATASET, path, training, augment)
+
+    def load(self):
+        if self.training:
+            flist = os.path.join(self.path, 'train.flist')
+            if os.path.exists(flist):
+                data = np.genfromtxt(flist, dtype=np.str, encoding='utf-8')
+            else:
+                data = np.array(glob.glob(self.path + '/train/*.jpg'))
+                np.savetxt(flist, data, fmt='%s')
+
+        else:
+            flist = os.path.join(self.path, 'test.flist')
+            if os.path.exists(flist):
+                data = np.genfromtxt(flist, dtype=np.str, encoding='utf-8')
+            else:
+                data = np.array(glob.glob(self.path + '/test/*.jpg'))
+                np.savetxt(flist, data, fmt='%s')
+
+        return data
+
+
 class TestDataset(BaseDataset):
     def __init__(self, path):
         super(TestDataset, self).__init__('TEST', path, training=False, augment=False)
@@ -154,5 +183,8 @@ class TestDataset(BaseDataset):
 
         elif os.path.isdir(self.path):
             data = list(glob.glob(self.path + '/*.jpg')) + list(glob.glob(self.path + '/*.png'))
+
+        else:
+            exit("input not found: {}".format(self.path))
 
         return data

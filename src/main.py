@@ -1,10 +1,12 @@
 import os
 import random
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
+
 from .options import ModelOptions
-from .models import Cifar10Model, Places365Model
-from .dataset import CIFAR10_DATASET, PLACES365_DATASET
+from .models import Cifar10Model, Places365Model, NirModel
+from .dataset import CIFAR10_DATASET, PLACES365_DATASET, NIR_DATASET
 
 
 def main(options):
@@ -27,6 +29,9 @@ def main(options):
 
         elif options.dataset == PLACES365_DATASET:
             model = Places365Model(sess, options)
+
+        elif options.dataset == NIR_DATASET:
+            model = NirModel(sess, options)
 
         if not os.path.exists(options.checkpoints_path):
             os.makedirs(options.checkpoints_path)
@@ -52,9 +57,9 @@ def main(options):
                     print('%s: %s' % (str(k), str(v)))
                     f.write('%s: %s\n' % (str(k), str(v)))
             print('-------------- End ----------------\n')
-            
+
             model.train()
-        
+
         elif options.mode == 1:
             model.test()
 

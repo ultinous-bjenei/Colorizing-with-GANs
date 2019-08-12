@@ -3,13 +3,14 @@ from __future__ import print_function
 import os
 import time
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 
 from abc import abstractmethod
 from .networks import Generator, Discriminator
 from .ops import pixelwise_accuracy, preprocess, postprocess
 from .ops import COLORSPACE_RGB, COLORSPACE_LAB
-from .dataset import Places365Dataset, Cifar10Dataset, TestDataset
+from .dataset import Places365Dataset, Cifar10Dataset, NirDataset, TestDataset
 from .utils import stitch_images, turing_test, imshow, imsave, create_dir, visualize, Progbar
 
 
@@ -47,6 +48,7 @@ class BaseModel:
                 feed_dic = {self.input_rgb: input_rgb}
 
                 self.iteration = self.iteration + 1
+
                 self.sess.run([self.dis_train], feed_dict=feed_dic)
                 self.sess.run([self.gen_train, self.accuracy], feed_dict=feed_dic)
                 self.sess.run([self.gen_train, self.accuracy], feed_dict=feed_dic)
@@ -359,6 +361,53 @@ class Places365Model(BaseModel):
 
     def create_dataset(self, training=True):
         return Places365Dataset(
+            path=self.options.dataset_path,
+            training=training,
+            augment=self.options.augment)
+
+class NirModel(BaseModel):
+    def __init__(self, sess, options):
+        super(NirModel, self).__init__(sess, options)
+
+    def create_generator(self):
+        kernels_gen_encoder = [
+            (32, 1, 0),
+            (32, 2, 0),
+            (64, 2, 0),
+            (128, 2, 0),
+            (256, 2, 0),
+            (512, 2, 0),
+            (512, 2, 0),
+            (512, 2, 0),
+            (512, 2, 0),
+        ]
+
+        kernels_gen_decoder = [
+            (512, 2, 0),
+            (512, 2, 0),
+            (512, 2, 0),
+            (256, 2, 0),
+            (128, 2, 0),
+            (64, 2, 0),
+            (32, 2, 0),
+            (32, 2, 0),
+        ]
+
+        return Generator('gen', kernels_gen_encoder, kernels_gen_decoder, training=self.options.training)
+
+    def create_discriminator(self):
+        kernels_dis = [
+            (32, 2, 0),
+            (64, 2, 0),
+            (128, 2, 0),
+            (256, 1, 0),
+            (512, 1, 0),
+        ]
+
+        return Discriminator('dis', kernels_dis, training=self.options.training)
+
+    def create_dataset(self, training=True):
+        return NirDataset(
             path=self.options.dataset_path,
             training=training,
             augment=self.options.augment)
