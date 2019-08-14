@@ -1,9 +1,8 @@
 import os
 import glob
 import numpy as np
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 from sys import exit
-tf.disable_v2_behavior()
 
 #from scipy.misc import imread
 from imageio import imread

@@ -3,8 +3,7 @@ from __future__ import print_function
 import os
 import time
 import numpy as np
-import tensorflow.compat.v1 as tf
-tf.disable_v2_behavior()
+import tensorflow as tf
 
 from abc import abstractmethod
 from .networks import Generator, Discriminator
@@ -128,7 +127,7 @@ class BaseModel:
 
             feed_dic = {self.input_gray: img_gray[None, :, :, None]}
             outputs = self.sess.run(self.sampler, feed_dict=feed_dic)
-            outputs = postprocess(tf.convert_to_tensor(outputs), colorspace_in=self.options.color_space, colorspace_out=COLORSPACE_RGB).eval() * 255
+            outputs = postprocess(tf.convert_to_tensor(value=outputs), colorspace_in=self.options.color_space, colorspace_out=COLORSPACE_RGB).eval() * 255
             print(path)
             imsave(outputs[0], path)
 
@@ -138,7 +137,7 @@ class BaseModel:
 
         step, rate = self.sess.run([self.global_step, self.learning_rate])
         fake_image, input_gray = self.sess.run([self.sampler, self.input_gray], feed_dict=feed_dic)
-        fake_image = postprocess(tf.convert_to_tensor(fake_image), colorspace_in=self.options.color_space, colorspace_out=COLORSPACE_RGB)
+        fake_image = postprocess(tf.convert_to_tensor(value=fake_image), colorspace_in=self.options.color_space, colorspace_out=COLORSPACE_RGB)
         img = stitch_images(input_gray, input_rgb, fake_image.eval())
 
         create_dir(self.samples_dir)
@@ -161,7 +160,7 @@ class BaseModel:
             input_rgb = next(gen)
             feed_dic = {self.input_rgb: input_rgb}
             fake_image = self.sess.run(self.sampler, feed_dict=feed_dic)
-            fake_image = postprocess(tf.convert_to_tensor(fake_image), colorspace_in=self.options.color_space, colorspace_out=COLORSPACE_RGB)
+            fake_image = postprocess(tf.convert_to_tensor(value=fake_image), colorspace_in=self.options.color_space, colorspace_out=COLORSPACE_RGB)
 
             for i in range(np.min([batch_size, size - count])):
                 res = turing_test(input_rgb[i], fake_image.eval()[i], self.options.turing_test_delay)
@@ -182,14 +181,14 @@ class BaseModel:
         kernel = 4
 
         # model input placeholder: RGB imaege
-        self.input_rgb = tf.placeholder(tf.float32, shape=(None, None, None, 3), name='input_rgb')
+        self.input_rgb = tf.compat.v1.placeholder(tf.float32, shape=(None, None, None, 3), name='input_rgb')
 
         # model input after preprocessing: LAB image
         self.input_color = preprocess(self.input_rgb, colorspace_in=COLORSPACE_RGB, colorspace_out=self.options.color_space)
 
         # test mode: model input is a graycale placeholder
         if self.options.mode == 1:
-            self.input_gray = tf.placeholder(tf.float32, shape=(None, None, None, 1), name='input_gray')
+            self.input_gray = tf.compat.v1.placeholder(tf.float32, shape=(None, None, None, 1), name='input_gray')
 
         # train/turing-test we extract grayscale image from color image
         else:
@@ -203,12 +202,12 @@ class BaseModel:
         dis_real_ce = tf.nn.sigmoid_cross_entropy_with_logits(logits=dis_real, labels=tf.ones_like(dis_real) * smoothing)
         dis_fake_ce = tf.nn.sigmoid_cross_entropy_with_logits(logits=dis_fake, labels=tf.zeros_like(dis_fake))
 
-        self.dis_loss_real = tf.reduce_mean(dis_real_ce)
-        self.dis_loss_fake = tf.reduce_mean(dis_fake_ce)
-        self.dis_loss = tf.reduce_mean(dis_real_ce + dis_fake_ce)
+        self.dis_loss_real = tf.reduce_mean(input_tensor=dis_real_ce)
+        self.dis_loss_fake = tf.reduce_mean(input_tensor=dis_fake_ce)
+        self.dis_loss = tf.reduce_mean(input_tensor=dis_real_ce + dis_fake_ce)
 
-        self.gen_loss_gan = tf.reduce_mean(gen_ce)
-        self.gen_loss_l1 = tf.reduce_mean(tf.abs(self.input_color - gen)) * self.options.l1_weight
+        self.gen_loss_gan = tf.reduce_mean(input_tensor=gen_ce)
+        self.gen_loss_l1 = tf.reduce_mean(input_tensor=tf.abs(self.input_color - gen)) * self.options.l1_weight
         self.gen_loss = self.gen_loss_gan + self.gen_loss_l1
 
         self.sampler = tf.identity(gen_factory.create(self.input_gray, kernel, seed, reuse_variables=True), name='output')
@@ -217,25 +216,25 @@ class BaseModel:
 
         # learning rate decay
         if self.options.lr_decay and self.options.lr_decay_rate > 0:
-            self.learning_rate = tf.maximum(1e-6, tf.train.exponential_decay(
+            self.learning_rate = tf.maximum(1e-6, tf.compat.v1.train.exponential_decay(
                 learning_rate=self.options.lr,
                 global_step=self.global_step,
                 decay_steps=self.options.lr_decay_steps,
                 decay_rate=self.options.lr_decay_rate))
 
         # generator optimizaer
-        self.gen_train = tf.train.AdamOptimizer(
+        self.gen_train = tf.compat.v1.train.AdamOptimizer(
             learning_rate=self.learning_rate,
             beta1=self.options.beta1
         ).minimize(self.gen_loss, var_list=gen_factory.var_list)
 
         # discriminator optimizaer
-        self.dis_train = tf.train.AdamOptimizer(
+        self.dis_train = tf.compat.v1.train.AdamOptimizer(
             learning_rate=self.learning_rate / 10,
             beta1=self.options.beta1
         ).minimize(self.dis_loss, var_list=dis_factory.var_list, global_step=self.global_step)
 
-        self.saver = tf.train.Saver()
+        self.saver = tf.compat.v1.train.Saver()
 
     def load(self):
         ckpt = tf.train.get_checkpoint_state(self.options.checkpoints_path)

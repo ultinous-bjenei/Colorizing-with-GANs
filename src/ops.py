@@ -1,17 +1,17 @@
 import numpy as np
-import tensorflow.compat.v1 as tf
-tf.disable_v2_behavior()
+import tensorflow as tf
 
 COLORSPACE_RGB = 'RGB'
 COLORSPACE_LAB = 'LAB'
-tf.nn.softmax_cross_entropy_with_logits_v2
+tf.nn.softmax_cross_entropy_with_logits
 
 def conv2d(inputs, filters, name, kernel_size=4, strides=2, bnorm=True, activation=None, seed=None):
     """
     Creates a conv2D block
     """
-    initializer=tf.variance_scaling_initializer(seed=seed)
-    res = tf.layers.conv2d(
+    initializer=tf.compat.v1.variance_scaling_initializer(seed=seed)
+
+    res = tf.compat.v1.layers.conv2d(
         name=name,
         inputs=inputs,
         filters=filters,
@@ -20,8 +20,17 @@ def conv2d(inputs, filters, name, kernel_size=4, strides=2, bnorm=True, activati
         padding="same",
         kernel_initializer=initializer)
 
+    # res = tf.keras.layers.Conv2D(
+    #     name=name,
+    #     filters=filters,
+    #     kernel_size=kernel_size,
+    #     strides=strides,
+    #     padding="same",
+    #     kernel_initializer=initializer)(inputs)
+
     if bnorm:
-        res = tf.layers.batch_normalization(inputs=res, name='bn_' + name, training=True)
+        # res = tf.compat.v1.layers.batch_normalization(inputs=res, name='bn_' + name, training=True)
+        res = tf.keras.layers.BatchNormalization(name='bn_' + name)(inputs=res, training=True)
 
     # activation after batch-norm
     if activation is not None:
@@ -34,8 +43,9 @@ def conv2d_transpose(inputs, filters, name, kernel_size=4, strides=2, bnorm=True
     """
     Creates a conv2D-transpose block
     """
-    initializer=tf.variance_scaling_initializer(seed=seed)
-    res = tf.layers.conv2d_transpose(
+    initializer=tf.compat.v1.variance_scaling_initializer(seed=seed)
+
+    res = tf.compat.v1.layers.conv2d_transpose(
         name=name,
         inputs=inputs,
         filters=filters,
@@ -44,8 +54,17 @@ def conv2d_transpose(inputs, filters, name, kernel_size=4, strides=2, bnorm=True
         padding="same",
         kernel_initializer=initializer)
 
+    # res = tf.keras.layers.Conv2DTranspose(
+    #     name=name,
+    #     filters=filters,
+    #     kernel_size=kernel_size,
+    #     strides=strides,
+    #     padding="same",
+    #     kernel_initializer=initializer)(inputs)
+
     if bnorm:
-        res = tf.layers.batch_normalization(inputs=res, name='bn_' + name, training=True)
+        # res = tf.compat.v1.layers.batch_normalization(inputs=res, name='bn_' + name, training=True)
+        res = tf.keras.layers.BatchNormalization(name='bn_' + name)(inputs=res, training=True)
 
     # activation after batch-norm
     if activation is not None:
@@ -73,7 +92,7 @@ def pixelwise_accuracy(img_real, img_fake, colorspace, thresh):
     # all three channels are within the threshold
     pred = predL * predA * predB
 
-    return tf.reduce_mean(pred)
+    return tf.reduce_mean(input_tensor=pred)
 
 
 def preprocess(img, colorspace_in, colorspace_out):
@@ -120,10 +139,10 @@ def postprocess(img, colorspace_in, colorspace_out):
 
 def rgb_to_lab(srgb):
     # based on https://github.com/torch/image/blob/9f65c30167b2048ecbe8b7befdc6b2d6d12baee9/generic/image.c
-    with tf.name_scope("rgb_to_lab"):
+    with tf.compat.v1.name_scope("rgb_to_lab"):
         srgb_pixels = tf.reshape(srgb, [-1, 3])
 
-        with tf.name_scope("srgb_to_xyz"):
+        with tf.compat.v1.name_scope("srgb_to_xyz"):
             linear_mask = tf.cast(srgb_pixels <= 0.04045, dtype=tf.float32)
             exponential_mask = tf.cast(srgb_pixels > 0.04045, dtype=tf.float32)
             rgb_pixels = (srgb_pixels / 12.92 * linear_mask) + (((srgb_pixels + 0.055) / 1.055) ** 2.4) * exponential_mask
@@ -136,7 +155,7 @@ def rgb_to_lab(srgb):
             xyz_pixels = tf.matmul(rgb_pixels, rgb_to_xyz)
 
         # https://en.wikipedia.org/wiki/Lab_color_space#CIELAB-CIEXYZ_conversions
-        with tf.name_scope("xyz_to_cielab"):
+        with tf.compat.v1.name_scope("xyz_to_cielab"):
 
             # normalize for D65 white point
             xyz_normalized_pixels = tf.multiply(xyz_pixels, [1 / 0.950456, 1.0, 1 / 1.088754])
@@ -155,15 +174,15 @@ def rgb_to_lab(srgb):
             ])
             lab_pixels = tf.matmul(fxfyfz_pixels, fxfyfz_to_lab) + tf.constant([-16.0, 0.0, 0.0])
 
-        return tf.reshape(lab_pixels, tf.shape(srgb))
+        return tf.reshape(lab_pixels, tf.shape(input=srgb))
 
 
 def lab_to_rgb(lab):
-    with tf.name_scope("lab_to_rgb"):
+    with tf.compat.v1.name_scope("lab_to_rgb"):
         lab_pixels = tf.reshape(lab, [-1, 3])
 
         # https://en.wikipedia.org/wiki/Lab_color_space#CIELAB-CIEXYZ_conversions
-        with tf.name_scope("cielab_to_xyz"):
+        with tf.compat.v1.name_scope("cielab_to_xyz"):
             # convert to fxfyfz
             lab_to_fxfyfz = tf.constant([
                 #   fx      fy        fz
@@ -182,7 +201,7 @@ def lab_to_rgb(lab):
             # denormalize for D65 white point
             xyz_pixels = tf.multiply(xyz_pixels, [0.950456, 1.0, 1.088754])
 
-        with tf.name_scope("xyz_to_srgb"):
+        with tf.compat.v1.name_scope("xyz_to_srgb"):
             xyz_to_rgb = tf.constant([
                 #     r           g          b
                 [3.2404542, -0.9692660, 0.0556434],  # x
@@ -196,4 +215,4 @@ def lab_to_rgb(lab):
             exponential_mask = tf.cast(rgb_pixels > 0.0031308, dtype=tf.float32)
             srgb_pixels = (rgb_pixels * 12.92 * linear_mask) + ((rgb_pixels ** (1 / 2.4) * 1.055) - 0.055) * exponential_mask
 
-        return tf.reshape(srgb_pixels, tf.shape(lab))
+        return tf.reshape(srgb_pixels, tf.shape(input=lab))
