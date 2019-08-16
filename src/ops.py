@@ -29,8 +29,8 @@ def conv2d(inputs, filters, name, kernel_size=4, strides=2, bnorm=True, activati
     #     kernel_initializer=initializer)(inputs)
 
     if bnorm:
-        # res = tf.compat.v1.layers.batch_normalization(inputs=res, name='bn_' + name, training=True)
-        res = tf.keras.layers.BatchNormalization(name='bn_' + name)(inputs=res, training=True)
+        res = tf.compat.v1.layers.batch_normalization(inputs=res, name='bn_' + name, training=True)
+        # res = tf.keras.layers.BatchNormalization(name='bn_' + name)(inputs=res, training=True)
 
     # activation after batch-norm
     if activation is not None:
@@ -63,8 +63,8 @@ def conv2d_transpose(inputs, filters, name, kernel_size=4, strides=2, bnorm=True
     #     kernel_initializer=initializer)(inputs)
 
     if bnorm:
-        # res = tf.compat.v1.layers.batch_normalization(inputs=res, name='bn_' + name, training=True)
-        res = tf.keras.layers.BatchNormalization(name='bn_' + name)(inputs=res, training=True)
+        res = tf.compat.v1.layers.batch_normalization(inputs=res, name='bn_' + name, training=True)
+        # res = tf.keras.layers.BatchNormalization(name='bn_' + name)(inputs=res, training=True)
 
     # activation after batch-norm
     if activation is not None:
