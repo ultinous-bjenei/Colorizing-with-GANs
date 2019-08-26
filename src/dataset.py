@@ -128,7 +128,7 @@ class Places365Dataset(BaseDataset):
             if os.path.exists(flist):
                 data = np.genfromtxt(flist, dtype=np.str, encoding='utf-8')
             else:
-                data = glob.glob(self.path + '/data_256/**/*.jpg', recursive=True)
+                data = glob.glob(self.path + '/data_256/**/*.jpg')
                 np.savetxt(flist, data, fmt='%s')
 
         else:
@@ -136,7 +136,7 @@ class Places365Dataset(BaseDataset):
             if os.path.exists(flist):
                 data = np.genfromtxt(flist, dtype=np.str, encoding='utf-8')
             else:
-                data = np.array(glob.glob(self.path + '/val_256/*.jpg'))
+                data = glob.glob(self.path + '/val_256/*.jpg')
                 np.savetxt(flist, data, fmt='%s')
 
         return data
@@ -152,7 +152,7 @@ class NirDataset(BaseDataset):
             if os.path.exists(flist):
                 data = np.genfromtxt(flist, dtype=np.str, encoding='utf-8')
             else:
-                data = np.array(glob.glob(self.path + '/train/*.jpg'))
+                data = glob.glob(self.path + '/train/*.jpg')
                 np.savetxt(flist, data, fmt='%s')
 
         else:
@@ -160,7 +160,7 @@ class NirDataset(BaseDataset):
             if os.path.exists(flist):
                 data = np.genfromtxt(flist, dtype=np.str, encoding='utf-8')
             else:
-                data = np.array(glob.glob(self.path + '/test/*.jpg'))
+                data = glob.glob(self.path + '/test/*.jpg')
                 np.savetxt(flist, data, fmt='%s')
 
         return data

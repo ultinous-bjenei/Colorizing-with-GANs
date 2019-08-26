@@ -126,8 +126,11 @@ class BaseModel:
             path = os.path.join(outputs_path, name)
 
             feed_dic = {self.input_gray: img_gray[None, :, :, None]}
-            outputs = self.sess.run(self.sampler, feed_dict=feed_dic)
-            outputs = postprocess(tf.convert_to_tensor(value=outputs), colorspace_in=self.options.color_space, colorspace_out=COLORSPACE_RGB).eval() * 255
+
+            # outputs = self.sess.run(self.sampler, feed_dict=feed_dic)
+            # outputs = postprocess(tf.convert_to_tensor(value=outputs), colorspace_in=self.options.color_space, colorspace_out=COLORSPACE_RGB).eval() * 255
+            outputs = self.sess.run(self.output_color_rgb, feed_dict=feed_dic) * 255
+
             print(path)
             imsave(outputs[0], path)
 
@@ -136,9 +139,13 @@ class BaseModel:
         feed_dic = {self.input_rgb: input_rgb}
 
         step, rate = self.sess.run([self.global_step, self.learning_rate])
-        fake_image, input_gray = self.sess.run([self.sampler, self.input_gray], feed_dict=feed_dic)
-        fake_image = postprocess(tf.convert_to_tensor(value=fake_image), colorspace_in=self.options.color_space, colorspace_out=COLORSPACE_RGB)
-        img = stitch_images(input_gray, input_rgb, fake_image.eval())
+
+        # fake_image, input_gray = self.sess.run([self.sampler, self.input_gray], feed_dict=feed_dic)
+        # fake_image = postprocess(tf.convert_to_tensor(value=fake_image), colorspace_in=self.options.color_space, colorspace_out=COLORSPACE_RGB)
+        fake_image, input_gray = self.sess.run([self.output_color_rgb, self.input_gray], feed_dict=feed_dic)
+
+        # img = stitch_images(input_gray, input_rgb, fake_image.eval())
+        img = stitch_images(input_gray, input_rgb, fake_image)
 
         create_dir(self.samples_dir)
         sample = self.options.dataset + "_" + str(step).zfill(5) + ".png"
@@ -159,11 +166,15 @@ class BaseModel:
         while count < size:
             input_rgb = next(gen)
             feed_dic = {self.input_rgb: input_rgb}
-            fake_image = self.sess.run(self.sampler, feed_dict=feed_dic)
-            fake_image = postprocess(tf.convert_to_tensor(value=fake_image), colorspace_in=self.options.color_space, colorspace_out=COLORSPACE_RGB)
+
+            # fake_image = self.sess.run(self.sampler, feed_dict=feed_dic)
+            # fake_image = postprocess(tf.convert_to_tensor(value=fake_image), colorspace_in=self.options.color_space, colorspace_out=COLORSPACE_RGB)
+            fake_image = self.sess.run(self.output_color_rgb, feed_dict=feed_dic)
 
             for i in range(np.min([batch_size, size - count])):
-                res = turing_test(input_rgb[i], fake_image.eval()[i], self.options.turing_test_delay)
+                # res = turing_test(input_rgb[i], fake_image.eval()[i], self.options.turing_test_delay)
+                res = turing_test(input_rgb[i], fake_image.[i], self.options.turing_test_delay)
+
                 count += 1
                 score += res
                 print('success: %d - fail: %d - rate: %f' % (score, count - score, (count - score) / count))
@@ -213,6 +224,8 @@ class BaseModel:
         self.sampler = tf.identity(gen_factory.create(self.input_gray, kernel, seed, reuse_variables=True), name='output')
         self.accuracy = pixelwise_accuracy(self.input_color, gen, self.options.color_space, self.options.acc_thresh)
         self.learning_rate = tf.constant(self.options.lr)
+
+        self.output_color_rgb = postprocess(self.sampler, colorspace_in=self.options.color_space, colorspace_out=COLORSPACE_RGB)
 
         # learning rate decay
         if self.options.lr_decay and self.options.lr_decay_rate > 0:
@@ -370,37 +383,37 @@ class NirModel(BaseModel):
 
     def create_generator(self):
         kernels_gen_encoder = [
-            (32, 1, 0),
-            (32, 2, 0),
-            (64, 2, 0),
-            (128, 2, 0),
-            (256, 2, 0),
-            (512, 2, 0),
-            (512, 2, 0),
-            (512, 2, 0),
-            (512, 2, 0),
+            (32, 1, 0),  # [batch, 512, 512, ch] => [batch, 512, 512, 32]
+            (32, 2, 0),  # [batch, 512, 512, 32] => [batch, 256, 256, 32]
+            (64, 2, 0),  # [batch, 256, 256, 32] => [batch, 128, 128, 64]
+            (128, 2, 0), # [batch, 128, 128, 64] => [batch, 64, 64, 128]
+            (256, 2, 0), # [batch, 64, 64, 128]  => [batch, 32, 32, 256]
+            (512, 2, 0), # [batch, 32, 32, 256]  => [batch, 16, 16, 512]
+            (512, 2, 0), # [batch, 16, 16, 512]  => [batch, 8, 8, 512]
+            (512, 2, 0), # [batch, 8, 8, 512]    => [batch, 4, 4, 512]
+            (512, 2, 0), # [batch, 4, 4, 512]    => [batch, 2, 2, 512]
         ]
 
         kernels_gen_decoder = [
-            (512, 2, 0),
-            (512, 2, 0),
-            (512, 2, 0),
-            (256, 2, 0),
-            (128, 2, 0),
-            (64, 2, 0),
-            (32, 2, 0),
-            (32, 2, 0),
+            (512, 2, 0), # [batch, 2, 2, 512]    => [batch, 4, 4, 512]
+            (512, 2, 0), # [batch, 4, 4, 512]    => [batch, 8, 8, 512]
+            (512, 2, 0), # [batch, 8, 8, 512]    => [batch, 16, 16, 512]
+            (256, 2, 0), # [batch, 16, 16, 512]  => [batch, 32, 32, 256]
+            (128, 2, 0), # [batch, 32, 32, 256]  => [batch, 64, 64, 128]
+            (64, 2, 0),  # [batch, 64, 64, 128]  => [batch, 128, 128, 64]
+            (32, 2, 0),  # [batch, 128, 128, 64] => [batch, 256, 256, 32]
+            (32, 2, 0),  # [batch, 256, 256, 32] => [batch, 512, 512, 32]
         ]
 
         return Generator('gen', kernels_gen_encoder, kernels_gen_decoder, training=self.options.training)
 
     def create_discriminator(self):
         kernels_dis = [
-            (32, 2, 0),
-            (64, 2, 0),
-            (128, 2, 0),
-            (256, 1, 0),
-            (512, 1, 0),
+            (32, 2, 0),  # [batch, 512, 512, ch] => [batch, 256, 256, 32]
+            (64, 2, 0),  # [batch, 256, 256, 32] => [batch, 128, 128, 64]
+            (128, 2, 0), # [batch, 128, 128, 64] => [batch, 64, 64, 128]
+            (256, 1, 0), # [batch, 64, 64, 128]  => [batch, 64, 64, 256]
+            (512, 1, 0), # [batch, 64, 64, 256]  => [batch, 32, 32, 512]
         ]
 
         return Discriminator('dis', kernels_dis, training=self.options.training)
